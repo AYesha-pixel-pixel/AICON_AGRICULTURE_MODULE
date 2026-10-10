@@ -28,7 +28,11 @@ def test_each_supported_disease_has_structured_guidance(label, crop):
     assert result["observable_symptoms"]
     assert result["prevention_and_crop_management"]
     assert result["when_to_seek_expert"]
-    assert result["sources"] == []
+    assert result["provenance_status"] == "local_verification_required"
+    assert all(
+        source["provenance_status"] == "local_verification_required"
+        for source in result["sources"]
+    )
     assert result["requires_source_verification"] is True
 
 
@@ -47,6 +51,7 @@ def test_healthy_result_is_not_presented_as_proof_of_no_disease(label, crop):
     assert result["healthy_result"] is True
     assert result["disease_name"] is None
     assert result["sources"] == []
+    assert result["provenance_status"] == "not_applicable"
     assert "not proof" in result["when_to_seek_expert"]
 
 
