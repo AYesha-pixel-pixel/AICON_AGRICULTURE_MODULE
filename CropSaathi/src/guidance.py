@@ -11,6 +11,14 @@ _SOURCE_VERIFICATION_NOTE = (
     "established agricultural advice."
 )
 
+_PARC_SOURCE = {
+    "source_id": "SRC-005",
+    "title": "Crop Diseases Research Institute",
+    "organization": "Pakistan Agricultural Research Council",
+    "url": "https://parc.gov.pk/Detail/MTU3N2I1YTctZjA4MS00MTgwLTk1ZDMtODlmYWE3NzUwNGRm",
+    "provenance_status": "local_verification_required",
+}
+
 _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
     "Corn___Common_Rust": {
         "label": "Corn___Common_Rust",
@@ -23,6 +31,7 @@ _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
             "before making treatment decisions."
         ),
         "sources": [],
+        "provenance_status": "local_verification_required",
         "requires_source_verification": True,
     },
     "Corn___Gray_Leaf_Spot": {
@@ -36,6 +45,7 @@ _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
             "before making treatment decisions."
         ),
         "sources": [],
+        "provenance_status": "local_verification_required",
         "requires_source_verification": True,
     },
     "Rice___Brown_Spot": {
@@ -49,6 +59,7 @@ _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
             "before making treatment decisions."
         ),
         "sources": [],
+        "provenance_status": "local_verification_required",
         "requires_source_verification": True,
     },
     "Rice___Leaf_Blast": {
@@ -62,6 +73,7 @@ _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
             "before making treatment decisions."
         ),
         "sources": [],
+        "provenance_status": "local_verification_required",
         "requires_source_verification": True,
     },
     "Wheat___Brown_Rust": {
@@ -74,7 +86,8 @@ _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
             "Seek a local agricultural expert to verify the possible issue "
             "before making treatment decisions."
         ),
-        "sources": [],
+        "sources": [_PARC_SOURCE],
+        "provenance_status": "local_verification_required",
         "requires_source_verification": True,
     },
     "Wheat___Yellow_Rust": {
@@ -87,7 +100,8 @@ _DISEASE_GUIDANCE: dict[str, dict[str, Any]] = {
             "Seek a local agricultural expert to verify the possible issue "
             "before making treatment decisions."
         ),
-        "sources": [],
+        "sources": [_PARC_SOURCE],
+        "provenance_status": "local_verification_required",
         "requires_source_verification": True,
     },
 }
@@ -113,6 +127,7 @@ def _healthy_response(label: str, crop: str) -> dict[str, Any]:
             "Seek local agricultural advice if symptoms or concerns remain."
         ),
         "sources": [],
+        "provenance_status": "not_applicable",
         "requires_source_verification": False,
         "healthy_result": True,
     }
@@ -165,4 +180,6 @@ def get_guidance(
     if _DISEASE_GUIDANCE[label]["crop"] != crop:
         return None
 
-    return dict(_DISEASE_GUIDANCE[label])
+    guidance = dict(_DISEASE_GUIDANCE[label])
+    guidance["sources"] = [dict(source) for source in guidance["sources"]]
+    return guidance
