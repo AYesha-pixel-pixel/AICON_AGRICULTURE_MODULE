@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import uuid
 from collections import OrderedDict
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from src.advisory_service import (
@@ -18,7 +20,6 @@ from src.advisory_service import (
     build_blocked_response,
 )
 from src.config import (
-    ALLOWED_EXTENSIONS,
     MAX_UPLOAD_MB,
     MODEL_ID,
     SUPPORTED_CROPS,
@@ -34,6 +35,7 @@ from src.model_service import (
     load_model,
 )
 from src.plan_builder import build_plan
+from src.weather_service import WeatherServiceError, get_weather
 
 
 LOGGER = logging.getLogger(__name__)
@@ -47,6 +49,22 @@ app = FastAPI(
         "Preliminary crop-leaf image decision support. Results are not "
         "confirmed field diagnoses."
     ),
+)
+
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
 _model_lock = threading.Lock()
@@ -68,6 +86,14 @@ class HealthResponse(BaseModel):
     )
 
 
+class RootResponse(BaseModel):
+    application: str
+    api_version: str
+    message: str
+    docs_url: str
+    health_url: str
+
+
 class CropOption(BaseModel):
     id: str
     label: str
@@ -75,6 +101,16 @@ class CropOption(BaseModel):
 
 class CropsResponse(BaseModel):
     crops: list[CropOption]
+
+
+class WeatherResponse(BaseModel):
+    source: str
+    location: dict[str, float]
+    timezone: str
+    units: dict[str, str]
+    current: dict[str, Any]
+    hourly_forecast: list[dict[str, Any]]
+    rain_alerts: list[dict[str, Any]]
 
 
 class TopPrediction(BaseModel):
@@ -183,12 +219,55 @@ def health() -> HealthResponse:
     )
 
 
+@app.get("/", response_model=RootResponse, tags=["system"])
+def root() -> RootResponse:
+    """Provide a lightweight landing response for the API base URL."""
+    return RootResponse(
+        application=APPLICATION_NAME,
+        api_version=API_VERSION,
+        message="CropSaathi API is running. Use /docs for interactive documentation.",
+        docs_url="/docs",
+        health_url="/health",
+    )
+
+
 @app.get("/crops", response_model=CropsResponse, tags=["configuration"])
 def crops() -> CropsResponse:
     """Return only crops configured as selectable by the application."""
     return CropsResponse(
         crops=[CropOption(id=crop, label=_crop_label(crop)) for crop in SUPPORTED_CROPS]
     )
+
+
+@app.get(
+    "/api/weather",
+    response_model=WeatherResponse,
+    tags=["weather"],
+    responses={502: {"description": "Weather provider unavailable or returned invalid data."}},
+)
+def weather(
+    latitude: float = Query(
+        33.6844,
+        ge=-90,
+        le=90,
+        description="Farm latitude in decimal degrees.",
+    ),
+    longitude: float = Query(
+        73.0479,
+        ge=-180,
+        le=180,
+        description="Farm longitude in decimal degrees.",
+    ),
+) -> WeatherResponse:
+    """Return normalized Open-Meteo conditions and application rain alerts."""
+    try:
+        return WeatherResponse.model_validate(get_weather(latitude, longitude))
+    except WeatherServiceError:
+        LOGGER.exception("Weather provider failed for %.5f, %.5f", latitude, longitude)
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to retrieve weather data. Please try again.",
+        ) from None
 
 
 @app.post(

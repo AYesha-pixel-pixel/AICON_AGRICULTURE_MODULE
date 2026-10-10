@@ -74,6 +74,39 @@ def test_health_does_not_load_model(client, monkeypatch):
     assert response.json()["model_ready"] is None
 
 
+def test_root_returns_api_entrypoint_without_loading_model(client, monkeypatch):
+    def fail_load():
+        raise AssertionError("root must not load the model")
+
+    monkeypatch.setattr(api, "load_model", fail_load)
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "application": "CropSaathi",
+        "api_version": "1.0",
+        "message": (
+            "CropSaathi API is running. Use /docs for interactive documentation."
+        ),
+        "docs_url": "/docs",
+        "health_url": "/health",
+    }
+
+
+def test_cors_allows_only_configured_local_frontend_origin(client):
+    allowed = client.get(
+        "/health",
+        headers={"Origin": "http://localhost:5173"},
+    )
+    denied = client.get(
+        "/health",
+        headers={"Origin": "https://untrusted.example"},
+    )
+
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "access-control-allow-origin" not in denied.headers
+
+
 def test_crops_match_configured_options(client):
     response = client.get("/crops")
 
@@ -83,6 +116,60 @@ def test_crops_match_configured_options(client):
         "wheat",
         "corn",
     ]
+
+
+def test_weather_route_returns_normalized_provider_data(client, monkeypatch):
+    monkeypatch.setattr(
+        api,
+        "get_weather",
+        lambda latitude, longitude: {
+            "source": "Open-Meteo",
+            "location": {"latitude": latitude, "longitude": longitude},
+            "timezone": "Asia/Karachi",
+            "units": {"temperature": "°C"},
+            "current": {"weather_code": 0},
+            "hourly_forecast": [],
+            "rain_alerts": [],
+        },
+    )
+
+    response = client.get(
+        "/api/weather",
+        params={"latitude": 31.5204, "longitude": 74.3587},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["location"] == {
+        "latitude": 31.5204,
+        "longitude": 74.3587,
+    }
+
+
+def test_weather_route_maps_provider_failure_to_502(client, monkeypatch):
+    from src.weather_service import WeatherServiceError
+
+    def fail_weather(latitude, longitude):
+        raise WeatherServiceError("provider details")
+
+    monkeypatch.setattr(api, "get_weather", fail_weather)
+
+    response = client.get("/api/weather")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Unable to retrieve weather data. Please try again."
+
+
+@pytest.mark.parametrize(
+    ("latitude", "longitude"),
+    [("91", "73"), ("-91", "73"), ("33", "181"), ("33", "-181")],
+)
+def test_weather_route_rejects_invalid_coordinates(client, latitude, longitude):
+    response = client.get(
+        "/api/weather",
+        params={"latitude": latitude, "longitude": longitude},
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize(

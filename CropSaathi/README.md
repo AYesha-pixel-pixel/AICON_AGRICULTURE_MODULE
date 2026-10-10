@@ -28,15 +28,23 @@ Install the declared dependencies if needed, then start the API:
 python -m uvicorn api:app --reload
 ```
 
-The API is available at `http://127.0.0.1:8000`. Interactive Swagger
-documentation is available at `http://127.0.0.1:8000/docs`.
+The API landing response is available at `http://127.0.0.1:8000/`.
+Interactive Swagger documentation is available at
+`http://127.0.0.1:8000/docs`.
 
 Endpoints:
 
+- `GET /` confirms that the API process is running and links to `/docs` and
+  `/health`. It does not load the ML model or contact Gemini.
 - `GET /health` reports that the API process is running. It does not load or
   validate the ML model, so `model_ready` is `null` until a deliberate
   readiness check is added.
 - `GET /crops` returns the configured selectable crop identifiers and labels.
+- `GET /api/weather` accepts optional `latitude` and `longitude` query
+  parameters and returns normalized Open-Meteo current conditions, a
+  forward-looking hourly forecast, and application rain alerts. It defaults
+  to Islamabad coordinates for backward compatibility. Provider failures
+  return HTTP 502; invalid coordinates return HTTP 422.
 - `POST /analyze` accepts multipart fields `image` and required
   `selected_crop`. It returns the existing prediction, decision, and report
   structures, including provenance and knowledge fields where available.
@@ -79,3 +87,14 @@ are not calibrated probabilities.
 The optional advisory endpoint is documented in
 [docs/ADVISORY.md](docs/ADVISORY.md). Set `GEMINI_API_KEY` only when using
 `POST /advisory`; `/analyze` remains functional without Gemini.
+
+For a local Vite frontend, the API allows `http://localhost:5173` and
+`http://127.0.0.1:5173` by default. Set `CORS_ORIGINS` to a comma-separated
+explicit origin allowlist for another approved frontend origin.
+
+## Frontend handoff
+
+The exact frontend-facing route and response contract is documented in
+[docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md). The React client should
+consume the canonical API on port `8000`; it should not call the separate
+weather module or duplicate model and decision logic.

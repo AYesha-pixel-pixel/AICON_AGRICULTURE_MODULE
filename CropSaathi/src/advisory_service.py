@@ -6,6 +6,8 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+GEMINI_TIMEOUT_MS = 30_000
+
 
 class AdvisoryError(RuntimeError):
     """Base error for advisory service failures."""
@@ -204,8 +206,12 @@ class AdvisoryService:
                 self._client = self._client_factory(api_key)
             else:
                 from google import genai
+                from google.genai import types
 
-                self._client = genai.Client(api_key=api_key)
+                self._client = genai.Client(
+                    api_key=api_key,
+                    http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
+                )
         except ImportError as error:
             raise AdvisoryUnavailableError(
                 "Gemini advisory is unavailable because the provider SDK is not installed."
