@@ -62,6 +62,11 @@ def test_approved_disease_plan_uses_only_returned_guidance():
     ]
     assert report["sources"][0]["source_id"] == "SRC-TEST"
     assert report["provenance_status"] == "local_verification_required"
+    assert report["knowledge"]["label"] == "Corn___Common_Rust"
+    assert (
+        report["knowledge"]["evidence_status"]
+        == "local_verification_required"
+    )
 
 
 def test_healthy_plan_does_not_claim_disease_absence():
@@ -90,6 +95,7 @@ def test_rejected_prediction_has_no_disease_recommendations():
     assert report["status"] == "unsupported"
     assert report["next_steps"]
     assert report["sources"] == []
+    assert report["knowledge"] is None
 
 
 def test_crop_mismatch_has_no_disease_recommendations():

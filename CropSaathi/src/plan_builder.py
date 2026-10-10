@@ -5,6 +5,7 @@ from typing import Any
 
 from src.decision_rules import decide
 from src.guidance import get_guidance
+from src.knowledge_base import get_disease_knowledge
 
 
 _DISCLAIMER = (
@@ -50,6 +51,7 @@ def _base_report(
         "summary": "",
         "next_steps": [],
         "sources": [],
+        "knowledge": None,
         "warnings": [_DISCLAIMER],
         "limitations": [
             "This report is decision support, not a confirmed diagnosis.",
@@ -122,6 +124,7 @@ def build_plan(
             supplied_guidance.get("prevention_and_crop_management")
         )
         report["sources"] = _safe_list(supplied_guidance.get("sources"))
+        report["knowledge"] = get_disease_knowledge(prediction.get("label"))
         provenance_status = supplied_guidance.get("provenance_status")
         if provenance_status is not None:
             report["provenance_status"] = provenance_status
