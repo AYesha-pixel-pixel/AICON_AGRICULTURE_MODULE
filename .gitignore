@@ -1,0 +1,37 @@
+﻿# Python environments
+.venv/
+venv/
+env/
+
+# Python cache and tests
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Downloaded model files and caches
+models/
+.cache/
+huggingface_cache/
+*.pt
+*.pth
+*.safetensors
+*.onnx
+
+# Temporary files
+uploads/
+temp/
+*.tmp
+
+# Editors and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
